@@ -1,10 +1,8 @@
 import cv2
-import os
 import torch
-import torchvision.transforms as transforms
-from torchvision.models import resnet18, ResNet18_Weights
 import torch.nn.functional as F
-import numpy as np
+from PIL import Image
+
 
 def extract_video_frames(path, num_frames=10):
     frames = []
@@ -26,37 +24,39 @@ def extract_video_frames(path, num_frames=10):
     cap.release()
     return frames
 
-def predict_deepfake(frames):
-    # Prototype of a model (not the actual one that will be used)
-    model = resnet18(weights = ResNet18_Weights.DEFAULT)
-    model.fc = torch.nn.Linear(in_features=model.fc.in_features, out_features=2)
-    model.eval()
 
-    transform = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.Resize((224, 224)),
-        transforms.ToTensor()
-    ])
+def predict_deepfake_from_frames(frames, model, processor):
 
-    # preprocessing the frames into tensors to used by the model
-    inputs = []
+    fake_probabilities = []
+
+    # preprocessing the frames into PIL images to used by the model
     for f in frames:
-        t = transform(f)
-        inputs.append(t)
+        if not isinstance(f, Image.Image):
+            f = Image.fromarray(f).convert("RGB")
+        else:
+            f = f.convert("RGB")
 
-    inputs = torch.stack(inputs)
+        inputs = processor(images=f, return_tensors="pt")
+        with torch.no_grad():
+            outputs= model(**inputs)
+            probabilities = F.softmax(outputs.logits, dim=1)
+            fake_probabilities.append(probabilities[0][0].item())
 
-    # generating and returning a prediction
-    with torch.no_grad():
-        outputs = model(inputs)
-        fake_probabilities = F.softmax(outputs, dim=1)[:, 1]
-        avg_fake_probability = fake_probabilities.mean().item()
+    avg_fake_probability = sum(fake_probabilities) / len(fake_probabilities)
 
-    outcome = "Fake" if avg_fake_probability > 0.5 else "Not Fake"
+    result = "FAKE" if avg_fake_probability > 0.5 else "NOT FAKE"
+
     return {
         "probabilities": fake_probabilities,
-        "outcome": outcome,
-        "confidence": str(round(avg_fake_probability * 100, 3)) + " %"
+        "result": result,
+        "confidence": str(round(avg_fake_probability*100, 2)) + " %"
     }
+
+
+def video_deepfake_detector(path, model, processor, num_frames=10):
+    video_frames = extract_video_frames(path, num_frames)
+    result = predict_deepfake_from_frames(video_frames, model, processor)
+
+    return result
 
 
