@@ -11,7 +11,6 @@ defusedxml~=0.7.1
 ipython~=7.34.0
 Pillow~=9.5.0
 jupyterlab-pygments~=0.2.2
-pip~=19.2.3
 attrs~=23.2.0
 protobuf~=4.24.4
 pytz~=2024.1
