@@ -78,66 +78,109 @@ def get_similar_from_web_search(claim, num_results=5):
     return data
 
 
-def compare_claim_to_web_search(claim, data):
-    nli = pipeline("text-classification", model="facebook/bart-large-mnli")
+def compare_claim_to_web_search(claim, data, model_name = "Dzeniks/roberta-fact-check"):
 
-    entailment_scores = []
-    contradiction_scores = []
-    neutral_scores = []
+    if model_name == "facebook/bart-large-mnli":
+        nli = pipeline("text-classification", model=model_name)
 
-    entailment_links = []
-    contradiction_links = []
+        entailment_scores = []
+        contradiction_scores = []
+        neutral_scores = []
 
-    snippets = []
-    for tup in data:
-        snippets.append(tup[0])
+        entailment_links = []
+        contradiction_links = []
 
-    for snippet, url in data:
-        result = nli(f"{claim} </s>{snippet}")
-        label = result[0]['label'].lower()
-        score = result[0]['score']
+        snippets = []
+        for tup in data:
+            snippets.append(tup[0])
 
-        if label == "entailment":
-            entailment_scores.append(score)
-            entailment_links.append(url)
-        elif label == "contradiction":
-            contradiction_scores.append(score)
-            contradiction_links.append(url)
-        elif label == "neutral":
-            neutral_scores.append(score)
+        for snippet, url in data:
+            result = nli(f"{claim} </s>{snippet}")
+            label = result[0]['label'].lower()
+            score = result[0]['score']
 
-
-    count_entailment = len(entailment_scores)
-    average_entailment = sum(entailment_scores) / count_entailment if count_entailment > 0 else 0
-
-    count_contradiction = len(contradiction_scores)
-    average_contradiction = sum(contradiction_scores) / count_contradiction if count_contradiction > 0 else 0
-
-    count_neutral = len(neutral_scores)
-
-    if count_entailment > count_contradiction and count_entailment > count_neutral and average_entailment > 0.5:
-        return f"Claim Supported: {claim}, Confidence Score: {average_entailment}\nSupporting links:\n" + "\n".join(entailment_links)
-    elif count_contradiction > count_entailment and count_contradiction > count_neutral and average_contradiction > 0.5:
-        return f"Claim Refuted: {claim}, Confidence Score: {average_contradiction}\nContradicting links:\n" + "\n".join(contradiction_links)
-    else:
-        return f"Claim Unclear: {claim} - Insufficient or Conflicting Evidence"
-
-"""
-    return {
-        "entailment_scores": entailment_scores,
-        "entailment_links": entailment_links,
-        "contradiction_scores": contradiction_scores,
-        "contradiction_links": contradiction_links,
-        "neutral_scores": neutral_scores,
-        "average_entailment": average_entailment,
-        "average_contradiction": average_contradiction,
-        "counts": {
-            "entailment": count_entailment,
-            "contradiction": count_contradiction,
-            "neutral": count_neutral
-        }
-    }
-"""
+            if label == "entailment":
+                entailment_scores.append(score)
+                entailment_links.append(url)
+            elif label == "contradiction":
+                contradiction_scores.append(score)
+                contradiction_links.append(url)
+            elif label == "neutral":
+                neutral_scores.append(score)
 
 
+        count_entailment = len(entailment_scores)
+        average_entailment = sum(entailment_scores) / count_entailment if count_entailment > 0 else 0
 
+        count_contradiction = len(contradiction_scores)
+        average_contradiction = sum(contradiction_scores) / count_contradiction if count_contradiction > 0 else 0
+
+        count_neutral = len(neutral_scores)
+
+        if count_entailment > count_contradiction and count_entailment > count_neutral and average_entailment > 0.5:
+            return f"Claim Supported: {claim}, Confidence Score: {average_entailment}\nSupporting links:\n" + "\n".join(entailment_links)
+        elif count_contradiction > count_entailment and count_contradiction > count_neutral and average_contradiction > 0.5:
+            return f"Claim Refuted: {claim}, Confidence Score: {average_contradiction}\nContradicting links:\n" + "\n".join(contradiction_links)
+        else:
+            return f"Claim Unclear: {claim} - Insufficient or Conflicting Evidence"
+
+    elif model_name == "Dzeniks/roberta-fact-check":
+        nli = pipeline("text-classification", model=model_name)
+        support_scores = []
+        refute_scores = []
+
+        support_links = []
+        refute_links = []
+
+        snippets = []
+        for tup in data:
+            snippets.append(tup[0])
+
+        for snippet, url in data:
+            result = nli(f"{claim} </s>{snippet}")
+            result_label = result[0]['label'].upper()
+            print(snippet)
+            print(result_label)
+            result_score = result[0]['score']
+            if result_label == "LABEL_0":
+                support_scores.append(result_score)
+                support_links.append(url)
+            elif result_label == "LABEL_1":
+                refute_scores.append(result_score)
+                refute_links.append(url)
+
+        support_count = len(support_scores)
+        refute_count = len(refute_scores)
+
+        support_average = sum(support_scores) / support_count if support_count > 0 else 0
+        refute_average = sum(refute_scores) / refute_count if refute_count > 0 else 0
+
+
+        if support_count > refute_count and support_average > 0.75:
+            return f"Claim Supported: {claim}, Confidence Score: {support_average:.3f}\nSupporting links:\n" + "\n".join(support_links)
+
+        elif refute_count > support_count and refute_average > 0.75:
+            return f"Claim Refuted: {claim}, Confidence Score: {refute_average:.3f}\nContradicting links:\n" + "\n".join(refute_links)
+
+        # Neutral Cases where either the claim or the evidence is unclear.
+        elif (support_count == refute_count) or (abs(support_average - refute_average) < 0.1):
+            return f"Claim Unclear: {claim} - Conflicting Evidence\nDetails:\nSupport Avg: {support_average:.3f}, Refute Avg: {refute_average:.3f}\n" + "\n Support Links: \n".join(support_links) + "\n Refute Links: \n".join(refute_links)
+
+        elif max(support_average, refute_average) < 0.5 or support_average < 0.75 or refute_average < 0.75:
+            return f"Claim Unclear: {claim} - Insufficient or Weak Evidence\nSupport Avg: {support_average:.3f}, Refute Avg: {refute_average:.3f}"
+
+        else:
+            return f"Claim Unclear: {claim} - Unable to determine"
+
+
+
+def speech_fact_check(video_path, model_name="Dzeniks/roberta-fact-check"):
+    sp_tt_dict = speech_to_text(video_path) # OpenAI Whisper used to extract text from speech
+
+    claims = split_text_into_sentences(sp_tt_dict["text"]) # Adding the individual sentences from all the text into a list
+
+    # Going through each claim individually
+    for claim in claims:
+        web_search_results = get_similar_from_web_search(claim) # Retrieves top 5 (can get more/less by changing the parameter num_results) google results for this claim.
+        result = compare_claim_to_web_search(claim, web_search_results, model_name)
+        print(result)
