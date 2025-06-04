@@ -7,6 +7,11 @@ import requests
 from nltk.tokenize import sent_tokenize
 from serpapi import GoogleSearch
 from transformers import pipeline
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+import time
 
 # Setting SSl certificates in order to load model
 os.environ["SSL_CERT_FILE"] = certifi.where()
@@ -58,6 +63,35 @@ def claim_should_be_fact_checked(claim):
     # Returns the JSON payload the API sent back
     return False
 
+
+def bing_search(claim, num_results=5):
+    options = Options()
+    options.headless = True
+    options.add_argument("--lang=en-US")
+
+    driver = webdriver.Chrome(service=Service("/usr/local/bin/chromedriver"), options=options)
+    driver.get(f"https://www.bing.com/search?q={claim}&setlang=en")
+    time.sleep(3)
+
+    soup = BeautifulSoup(driver.page_source, "html.parser")
+    driver.quit()
+
+
+    results = []
+    count = 0
+    for item in soup.find_all("li", class_="b_algo"):
+        title_tag = item.find("h2")
+        link_tag = item.find("a")
+        snippet_tag = item.find("p")
+
+        if title_tag and link_tag and snippet_tag:
+            results.append((snippet_tag.get_text() if snippet_tag else "", link_tag["href"]))
+            count += 1
+
+        if count >= num_results:
+            break
+
+    return results
 
 def get_similar_from_web_search(claim, num_results=5):
     params = {
@@ -139,8 +173,6 @@ def compare_claim_to_web_search(claim, data, model_name = "Dzeniks/roberta-fact-
         for snippet, url in data:
             result = nli(f"{claim} </s>{snippet}")
             result_label = result[0]['label'].upper()
-            print(snippet)
-            print(result_label)
             result_score = result[0]['score']
             if result_label == "LABEL_0":
                 support_scores.append(result_score)
@@ -174,7 +206,7 @@ def compare_claim_to_web_search(claim, data, model_name = "Dzeniks/roberta-fact-
 
 
 
-def speech_fact_check(video_path, model_name="Dzeniks/roberta-fact-check"):
+def speech_fact_check_serpAPI(video_path, model_name="Dzeniks/roberta-fact-check"):
     sp_tt_dict = speech_to_text(video_path) # OpenAI Whisper used to extract text from speech
 
     claims = split_text_into_sentences(sp_tt_dict["text"]) # Adding the individual sentences from all the text into a list
@@ -182,5 +214,17 @@ def speech_fact_check(video_path, model_name="Dzeniks/roberta-fact-check"):
     # Going through each claim individually
     for claim in claims:
         web_search_results = get_similar_from_web_search(claim) # Retrieves top 5 (can get more/less by changing the parameter num_results) google results for this claim.
+        result = compare_claim_to_web_search(claim, web_search_results, model_name)
+        print(result)
+
+
+def speech_fact_check_webDriver(video_path, model_name="Dzeniks/roberta-fact-check"):
+    sp_tt_dict = speech_to_text(video_path) # OpenAI Whisper used to extract text from speech
+
+    claims = split_text_into_sentences(sp_tt_dict["text"]) # Adding the individual sentences from all the text into a list
+
+    # Going through each claim individually
+    for claim in claims:
+        web_search_results = bing_search(claim) # Retrieves top 5 (can get more/less by changing the parameter num_results) google results for this claim.
         result = compare_claim_to_web_search(claim, web_search_results, model_name)
         print(result)
