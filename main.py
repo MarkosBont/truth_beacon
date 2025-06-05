@@ -7,7 +7,7 @@ from claim_verifier.text_fact_checking import speech_fact_check_webDriver
 def display_individual_claims(results, transcript=None):
     st.title("Fact Check Results")
 
-    st.subheader("Sentence-Level Analysis")
+    st.subheader("Sentence-Level Analysis:")
 
     if not results:
         st.warning("No claims were extracted or analyzed.")
