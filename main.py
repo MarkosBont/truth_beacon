@@ -75,7 +75,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-st.markdown("<h1>Fake News Detector</h1>", unsafe_allow_html=True)
+st.markdown("<h1>Truth Beacon</h1>", unsafe_allow_html=True)
 st.markdown("<h2>Drag and Drop Your Video Anywhere</h2>", unsafe_allow_html=True)
 st.markdown("<p class='upload-instructions'>Supported Formats: .mp4 .mov</p>", unsafe_allow_html=True)
 
