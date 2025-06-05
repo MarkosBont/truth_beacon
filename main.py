@@ -24,7 +24,7 @@ def display_individual_claims(results, transcript=None):
 
             elif verdict == "FALSE":
                 st.error("❌ Verdict: FALSE")
-                st.write("Supporting Links:")
+                st.write("Refuting Links:")
 
             elif verdict == "NO-DATA":
                 st.warning("⚠️ This claim is unclear, please fact check manually if necessary.")
@@ -77,7 +77,7 @@ st.markdown("""
 
 st.markdown("<h1>Fake News Detector</h1>", unsafe_allow_html=True)
 st.markdown("<h2>Drag and Drop Your Video Anywhere</h2>", unsafe_allow_html=True)
-st.markdown("<p class='upload-instructions'>Supported Formats: .mp4, .mov</p>", unsafe_allow_html=True)
+st.markdown("<p class='upload-instructions'>Supported Formats: .mp4 .mov</p>", unsafe_allow_html=True)
 
 
 file = st.file_uploader("file", type=["mp4", "mov"], label_visibility="hidden")

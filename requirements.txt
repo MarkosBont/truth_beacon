@@ -1,3 +1,6 @@
+libffi-dev
+libxml2-dev
+libxslt-dev
 six~=1.16.0
 lxml~=5.2.2
 beautifulsoup4~=4.12.3
