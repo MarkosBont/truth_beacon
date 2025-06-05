@@ -19,4 +19,5 @@ videos = {
 }
 
 video_path = videos["donald"]
-speech_fact_check_webDriver(video_path)
+result = bing_search("Today was good.")
+print(result)

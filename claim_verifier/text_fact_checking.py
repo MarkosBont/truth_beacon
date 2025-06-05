@@ -66,8 +66,8 @@ def claim_should_be_fact_checked(claim):
 
 def bing_search(claim, num_results=5):
     options = Options()
-    options.headless = True
     options.add_argument("--lang=en-US")
+    options.add_argument("--headless=new")
 
     driver = webdriver.Chrome(service=Service("/usr/local/bin/chromedriver"), options=options)
     driver.get(f"https://www.bing.com/search?q={claim}&setlang=en")
@@ -188,26 +188,60 @@ def compare_claim_to_web_search(claim, data, model_name = "Dzeniks/roberta-fact-
         refute_average = sum(refute_scores) / refute_count if refute_count > 0 else 0
 
 
-        if support_count > refute_count and support_average > 0.75:
-            return f"Claim Supported: {claim}, Confidence Score: {support_average:.3f}\nSupporting links:\n" + "\n".join(support_links)
+        if support_count > refute_count and support_average > 0.70:
+            return {"claim" : claim,
+                    "verdict": "TRUE",
+                    "support_score" : support_average,
+                    "refute_score" : refute_average,
+                    "support_links": support_links,
+                    "refute_links": refute_links}
 
         elif refute_count > support_count and refute_average > 0.75:
-            return f"Claim Refuted: {claim}, Confidence Score: {refute_average:.3f}\nContradicting links:\n" + "\n".join(refute_links)
+            return {"claim": claim,
+                    "verdict": "FALSE",
+                    "support_score": support_average,
+                    "refute_score": refute_average,
+                    "support_links": support_links,
+                    "refute_links": refute_links}
+
+        elif support_count == 0 and refute_count == 0:
+            return {"claim": claim,
+                    "verdict": "NO-DATA",
+                    "support_score": support_average,
+                    "refute_score": refute_average,
+                    "support_links": support_links,
+                    "refute_links": refute_links}
 
         # Neutral Cases where either the claim or the evidence is unclear.
         elif (support_count == refute_count) or (abs(support_average - refute_average) < 0.1):
-            return f"Claim Unclear: {claim} - Conflicting Evidence\nDetails:\nSupport Avg: {support_average:.3f}, Refute Avg: {refute_average:.3f}\n" + "\n Support Links: \n".join(support_links) + "\n Refute Links: \n".join(refute_links)
+            return {"claim": claim,
+                    "verdict": "UNC-CONFLICT",
+                    "support_score": support_average,
+                    "refute_score": refute_average,
+                    "support_links": support_links,
+                    "refute_links": refute_links}
 
-        elif max(support_average, refute_average) < 0.5 or support_average < 0.75 or refute_average < 0.75:
-            return f"Claim Unclear: {claim} - Insufficient or Weak Evidence\nSupport Avg: {support_average:.3f}, Refute Avg: {refute_average:.3f}"
+        elif max(support_average, refute_average) < 0.5:
+            return {"claim": claim,
+                    "verdict": "UNC-NOT-ENOUGH-DATA",
+                    "support_score": support_average,
+                    "refute_score": refute_average,
+                    "support_links": support_links,
+                    "refute_links": refute_links}
 
         else:
-            return f"Claim Unclear: {claim} - Unable to determine"
+            return {"claim": claim,
+                    "verdict": "CLAIM-UNC",
+                    "support_score": support_average,
+                    "refute_score": refute_average,
+                    "support_links": support_links,
+                    "refute_links": refute_links}
 
 
 
 def speech_fact_check_serpAPI(video_path, model_name="Dzeniks/roberta-fact-check"):
     sp_tt_dict = speech_to_text(video_path) # OpenAI Whisper used to extract text from speech
+    results = []
 
     claims = split_text_into_sentences(sp_tt_dict["text"]) # Adding the individual sentences from all the text into a list
 
@@ -215,16 +249,21 @@ def speech_fact_check_serpAPI(video_path, model_name="Dzeniks/roberta-fact-check
     for claim in claims:
         web_search_results = get_similar_from_web_search(claim) # Retrieves top 5 (can get more/less by changing the parameter num_results) google results for this claim.
         result = compare_claim_to_web_search(claim, web_search_results, model_name)
-        print(result)
+        results.append(result)
+    return results
+
 
 
 def speech_fact_check_webDriver(video_path, model_name="Dzeniks/roberta-fact-check"):
     sp_tt_dict = speech_to_text(video_path) # OpenAI Whisper used to extract text from speech
+    results = []
 
     claims = split_text_into_sentences(sp_tt_dict["text"]) # Adding the individual sentences from all the text into a list
 
     # Going through each claim individually
     for claim in claims:
-        web_search_results = bing_search(claim) # Retrieves top 5 (can get more/less by changing the parameter num_results) google results for this claim.
+        web_search_results = bing_search(claim) # Retrieves top 5 (can get more/less by changing the parameter num_results) bing results for this claim.
         result = compare_claim_to_web_search(claim, web_search_results, model_name)
-        print(result)
+        results.append(result)
+
+    return results
