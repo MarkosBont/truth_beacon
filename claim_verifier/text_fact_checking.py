@@ -1,9 +1,6 @@
-from os import truncate
-
 import whisper
 import os
 import certifi
-import requests
 from nltk.tokenize import sent_tokenize
 from serpapi import GoogleSearch
 from transformers import pipeline
@@ -12,6 +9,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 import time
+from newspaper import Article
 
 # Setting SSl certificates in order to load model
 os.environ["SSL_CERT_FILE"] = certifi.where()
@@ -43,28 +41,28 @@ def speech_to_text(video_path):
     }
 
 
-def claim_should_be_fact_checked(claim):
+def chunk_article(article_text, chunk_size=3):
+    sentences = sent_tokenize(article_text)
+    chunks = []
 
-    api_key = "a9e84fbf35644881b3e378a1af81b21c"
-
-    # Define the endpoint (url) with the claim formatted as part of it, api-key (api-key is sent as an extra header)
-    api_endpoint = f"https://idir.uta.edu/claimbuster/api/v2/score/text/{claim}"
-    request_headers = {"x-api-key": api_key}
-
-    # Sending the GET request to the API and storing the api response
-    api_response = requests.get(url=api_endpoint, headers=request_headers)
-
-    response_json = api_response.json()
-    results = response_json['results']
-    score = results[0]['score']
-    if score > 0.5:
-        return True
-
-    # Returns the JSON payload the API sent back
-    return False
+    for i in range(0, len(sentences), chunk_size):
+        chunk = " ".join(sentences[i:i + chunk_size])
+        chunks.append(chunk)
+    return chunks
 
 
-def bing_search(claim, num_results=5):
+def extract_full_text(url):
+    try:
+        article = Article(url)
+        article.download()
+        article.parse()
+        return article.text
+    except Exception as e:
+        print(f"Failed to extract {url}: {e}")
+        return ""
+
+
+def bing_search(claim, num_results=3):
     options = Options()
     options.add_argument("--lang=en-US")
     options.add_argument("--headless=new")
@@ -76,7 +74,6 @@ def bing_search(claim, num_results=5):
     soup = BeautifulSoup(driver.page_source, "html.parser")
     driver.quit()
 
-
     results = []
     count = 0
     for item in soup.find_all("li", class_="b_algo"):
@@ -85,15 +82,27 @@ def bing_search(claim, num_results=5):
         snippet_tag = item.find("p")
 
         if title_tag and link_tag and snippet_tag:
-            results.append((snippet_tag.get_text() if snippet_tag else "", link_tag["href"]))
-            count += 1
+            url = link_tag["href"]
+            article_text = extract_full_text(url)
+            if article_text:
+                results.append({
+                    "title": title_tag.get_text(),
+                    "snippet": snippet_tag.get_text(),
+                    "url": url,
+                    "article": article_text
+                })
+                count += 1
+
+        else:
+            print(f"Failed to extract {title_tag}, {link_tag}, {snippet_tag}, {article_text}")
+            return []
 
         if count >= num_results:
             break
 
     return results
 
-def get_similar_from_web_search(claim, num_results=5):
+def get_similar_from_web_search(claim, num_results=3):
     params = {
         "q": claim,
         "api_key": "d6ce7e36a6da680ab314e44aeb0b4a9c691fba1dfc2c0150f409589b63ca7c4d",

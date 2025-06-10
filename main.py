@@ -1,7 +1,7 @@
 import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 import streamlit as st
-from claim_verifier.text_fact_checking import speech_fact_check_webDriver
+from claim_verifier.text_fact_checking import speech_fact_check_webDriver, speech_fact_check_serpAPI
 from utils import extract_real_url, get_source_name_from_url
 
 
@@ -110,6 +110,6 @@ if file:
     if video:
         if st.button("FACT CHECK"):
             with st.spinner("Transcribing and verifying..."):
-                final = speech_fact_check_webDriver(temp_path)
+                final = speech_fact_check_serpAPI(temp_path)
                 display_individual_claims(final)
 

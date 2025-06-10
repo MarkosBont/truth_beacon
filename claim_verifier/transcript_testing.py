@@ -1,5 +1,5 @@
 from claim_verifier.text_fact_checking import compare_claim_to_web_search
-from text_fact_checking import speech_to_text, claim_should_be_fact_checked, split_text_into_sentences, get_similar_from_web_search,bing_search, speech_fact_check_webDriver, speech_fact_check_serpAPI
+from text_fact_checking import speech_to_text, chunk_article, split_text_into_sentences, get_similar_from_web_search,bing_search, speech_fact_check_webDriver, speech_fact_check_serpAPI
 import textwrap
 import warnings
 import nltk
@@ -19,5 +19,11 @@ videos = {
 }
 
 video_path = videos["donald"]
-result = bing_search("Today was good.")
-print(result)
+results = bing_search("Portugal won the Nations League.")
+print(results)
+
+"""
+for result in results:
+    chunked = result[]
+"""
+
