@@ -2,77 +2,8 @@ import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 import streamlit as st
 from claim_verifier.text_fact_checking import speech_fact_check_webDriver, speech_fact_check_serpAPI
-from utils import extract_real_url, get_source_name_from_url
-
-
-def display_individual_claims(results):
-    st.title("Fact Check Results")
-
-    st.subheader("Sentence-Level Analysis:")
-
-    if not results:
-        st.warning("No claims were extracted or analyzed.")
-        return
-
-    for i, entry in enumerate(results, 1):
-        with st.expander(f"💬 Claim {i}: {entry.get('claim', '[No claim]')}"):
-            verdict = entry.get("verdict", "Unknown").upper()
-
-            # Verdict display
-            if verdict == "TRUE":
-                st.success("✅ Verdict: TRUE")
-                st.write("Supporting links:")
-
-            elif verdict == "FALSE":
-                st.error("❌ Verdict: FALSE")
-                st.write("Refuting Links:")
-
-            elif verdict == "NO-DATA":
-                st.warning("⚠️ This claim is unclear, please fact check manually if necessary.")
-
-            elif verdict == "UNC-CONFLICT":
-                st.warning("⚠️ There was a conflict in the evidence found, please evaluate from these sources")
-
-            elif verdict == "UNC-NOT-ENOUGH-DATA":
-                st.warning("⚠️ Sorry! Not enough data was found.")
-
-            else:
-                st.warning("⚠️ Sorry! This claim was not clear, therefore could not be analysed.")
-
-
-            # Evidence display
-            if verdict == "TRUE":
-                links = entry.get("support_links", "No links were found")
-                for link in links:
-                    if link.startswith("javascript:"):
-                        continue
-
-                    real_url = extract_real_url(link)
-                    source = get_source_name_from_url(real_url)
-                    st.markdown(f"[Read source - {source}]({real_url})", unsafe_allow_html=True)
-
-            elif verdict == "FALSE":
-                links = entry.get("refute_links", "No links were found")
-                for link in links:
-                    if link.startswith("javascript:"):
-                        continue
-
-                    real_url = extract_real_url(link)
-                    source = get_source_name_from_url(real_url)
-                    st.markdown(f"[Read source - {source}]({real_url})", unsafe_allow_html=True)
-
-            elif verdict == "UNC-CONFLICT":
-                all_links = [entry.get("support_links", "No supporting links were found"),
-                             entry.get("refute_links", "No refute links were found")]
-
-                for link in all_links:
-                    if link.startswith("javascript:"):
-                        continue
-
-                    real_url = extract_real_url(link)
-                    source = get_source_name_from_url(real_url)
-                    st.markdown(f"[Read source - {source}]({real_url})", unsafe_allow_html=True)
-
+from claim_verifier.llm_fact_check import full_llm_fact_check
+from streamlit_utils.utils import display_individual_claims, display_individual_claims_from_llm
 
 
 st.markdown("""
@@ -110,6 +41,6 @@ if file:
     if video:
         if st.button("FACT CHECK"):
             with st.spinner("Transcribing and verifying..."):
-                final = speech_fact_check_serpAPI(temp_path)
-                display_individual_claims(final)
+                final = full_llm_fact_check(temp_path)
+                display_individual_claims_from_llm(final)
 

@@ -1,5 +1,6 @@
 import streamlit as st
 from utils import extract_real_url, get_source_name_from_url
+import json
 
 
 def display_individual_claims(results):
@@ -69,3 +70,41 @@ def display_individual_claims(results):
                     real_url = extract_real_url(link)
                     source = get_source_name_from_url(real_url)
                     st.markdown(f"[Read source - {source}]({real_url})", unsafe_allow_html=True)
+
+
+
+def display_individual_claims_from_llm(results):
+    st.title("Fact Check Results")
+
+    st.subheader("Sentence-Level Analysis:")
+
+    if not results:
+        st.warning("No claims were extracted or analyzed.")
+        return
+
+    try:
+        parsed_results = json.loads(results)  # Parses string JSON into a list
+    except json.JSONDecodeError:
+        st.error("Could not parse the results. Please check the format of the response.")
+        parsed_results = []
+
+    for i, entry in enumerate(parsed_results, 1):
+        with st.expander(f"💬 Claim {i}: {entry.get('claim', '[No claim]')}"):
+            verdict = entry.get("verdict", "unverified").upper()
+
+            # Verdict display
+            if verdict == "TRUE":
+                st.success("✅ Verdict: TRUE")
+                st.write("Supporting links:")
+
+            elif verdict == "FALSE":
+                st.error("❌ Verdict: FALSE")
+                st.write("Refuting Links:")
+
+            elif verdict == "UNVERIFIED":
+                st.warning("⚠️ This claim is unclear, please fact check manually if necessary.")
+
+            links = entry.get("supporting_links", "No links were found")
+            for link in links:
+                source = get_source_name_from_url(link)
+                st.markdown(f"[Read source - {source}]({link})", unsafe_allow_html=True)
