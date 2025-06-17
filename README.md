@@ -37,6 +37,6 @@ As a result, the project pivoted to a more robust and scalable solution: integra
 Clone the repo and install dependencies:
 
 ```bash
-git clone https://github.com/your-username/truth_beacon.git
+git clone https://github.com/MarkosBont/truth_beacon.git
 cd truth_beacon
 pip install -r requirements.txt
