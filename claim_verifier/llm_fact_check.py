@@ -61,6 +61,8 @@ def fact_check_llm(claim):
     
     If you are unsure of any results you find, set "unverified" as a verdict. You can still return the supporting links and allow the user to manually fact check.
     
+    If you find a source that supports the claim but has a spelling error in the name, set the verdict to true and add the supporting links. 
+    
 
     Input Text:
 
