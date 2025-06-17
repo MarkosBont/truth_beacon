@@ -27,7 +27,7 @@ As a result, the project pivoted to a more robust and scalable solution: integra
 
 - **Claim Extraction**: Detects and isolates factual claims from user input or documents.
 - **Fact Checking**: Uses OpenAI’s API to perform reasoning over the claim.
-- **Verdict Generation**: Outputs clear justifications and verdict labels: `True`, `False`, `Misleading`, or `Unverifiable`.
+- **Verdict Generation**: Outputs clear justifications and verdict labels: `True`, `False`, or `Unverified`.
 - **Supporting Claims**: Outputs for each claim include 
 
 ---
